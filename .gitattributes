@@ -1,0 +1,15 @@
+# Normalize line endings in the repository.
+* text=auto
+
+# Shell scripts and Docker files run inside Linux/macOS and must keep LF,
+# even when the repository is checked out on Windows.
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.map text eol=lf
+*.txt text eol=lf
+
+# Binary files.
+*.png binary
+*.dll binary
+*.so binary
+*.dylib binary

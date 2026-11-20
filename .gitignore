@@ -1,0 +1,21 @@
+# Build output
+bin/
+obj/
+artifacts/
+/packages/
+TestResults/
+*.nupkg
+*.snupkg
+
+# Native build output (produced by native/build.sh)
+native/out/
+native/work/
+
+# IDEs
+.idea/
+.vs/
+.vscode/
+*.user
+*.suo
+riderModule.iml
+/_ReSharper.Caches/
