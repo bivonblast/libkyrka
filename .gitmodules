@@ -1,0 +1,3 @@
+[submodule "native/libkyrka"]
+	path = native/libkyrka
+	url = https://github.com/jorisvink/libkyrka.git
