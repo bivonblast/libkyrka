@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>LibKyrka</RootNamespace>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsAotCompatible>true</IsAotCompatible>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="LibKyrka.Tests" />
+  </ItemGroup>
+
+  <!--
+    Native libkyrka binaries produced by native/build.sh, laid out as
+    native/out/<rid>/<file>. They are copied to runtimes/<rid>/native/ in the
+    output folder of every project that references this one.
+  -->
+  <ItemGroup>
+    <Content Include="$(KyrkaNativeOutput)*/*"
+             Link="runtimes/%(RecursiveDir)native/%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
