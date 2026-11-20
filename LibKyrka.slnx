@@ -6,4 +6,10 @@
     <File Path="global.json" />
     <File Path="README.md" />
   </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/LibKyrka/LibKyrka.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/LibKyrka.Tests/LibKyrka.Tests.csproj" />
+  </Folder>
 </Solution>
