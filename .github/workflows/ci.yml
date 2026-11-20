@@ -1,0 +1,146 @@
+# Build, test, package and publish LibKyrka.Net.
+#
+#   native  - build libkyrka for every supported platform
+#   test    - run the test suite and the demo on every platform
+#   pack    - create the NuGet package (only after all tests passed)
+#   publish - push to nuget.org (only for v* tags, only after pack)
+#
+# To release: push a tag such as v1.2.3. The package version is taken
+# from the tag. Publishing needs the NUGET_API_KEY secret in the "nuget"
+# environment (Settings > Environments).
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  native:
+    name: Native (${{ matrix.rid }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { rid: win-x64, os: ubuntu-latest, script: native/build-docker.sh }
+          - { rid: linux-x64, os: ubuntu-latest, script: native/build-docker.sh }
+          - { rid: linux-arm64, os: ubuntu-latest, script: native/build-docker.sh }
+          - { rid: osx-arm64, os: macos-latest, script: native/build.sh }
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - name: Build libkyrka
+        run: sh ${{ matrix.script }} ${{ matrix.rid }}
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: native-${{ matrix.rid }}
+          path: native/out
+          if-no-files-found: error
+
+  test:
+    name: Test (${{ matrix.rid }})
+    needs: native
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { rid: win-x64, os: windows-latest }
+          - { rid: linux-x64, os: ubuntu-latest }
+          - { rid: linux-arm64, os: ubuntu-24.04-arm }
+          - { rid: osx-arm64, os: macos-latest }
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: native-*
+          path: native/out
+          merge-multiple: true
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Build
+        run: dotnet build -c Release
+
+      - name: Test
+        run: dotnet test -c Release --no-build
+
+      - name: Demo smoke test
+        run: dotnet run --project samples/LibKyrka.Demo -c Release --no-build -- loopback --count 3
+
+  pack:
+    name: Pack
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: native-*
+          path: native/out
+          merge-multiple: true
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Determine version
+        id: version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=0.1.0-ci.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Pack
+        run: dotnet pack src/LibKyrka -c Release -o artifacts/packages -p:Version=${{ steps.version.outputs.value }}
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: packages
+          path: artifacts/packages
+          if-no-files-found: error
+
+  publish:
+    name: Publish to nuget.org
+    needs: pack
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: nuget
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: packages
+          path: artifacts/packages
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '11.0.x'
+
+      # The .snupkg symbol package is pushed together with the .nupkg.
+      - name: Push
+        run: >
+          dotnet nuget push "artifacts/packages/*.nupkg"
+          --api-key "${{ secrets.NUGET_API_KEY }}"
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate

@@ -1,0 +1,19 @@
+# Weekly pull requests for outdated dependencies. Each one runs the full
+# CI, so an update is only merged once every platform passes.
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  # Proposes new upstream libkyrka commits; prefer moving to release tags.
+  - package-ecosystem: gitsubmodule
+    directory: /
+    schedule:
+      interval: weekly
