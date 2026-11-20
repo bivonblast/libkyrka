@@ -1,0 +1,20 @@
+{
+  "profiles": {
+    "Loopback (two peers in one process)": {
+      "commandName": "Project",
+      "commandLineArgs": "loopback"
+    },
+    "Peer A (127.0.0.1:4000 -> 4001)": {
+      "commandName": "Project",
+      "commandLineArgs": "peer --listen 127.0.0.1:4000 --remote 127.0.0.1:4001 --secret secret.key"
+    },
+    "Peer B (127.0.0.1:4001 -> 4000)": {
+      "commandName": "Project",
+      "commandLineArgs": "peer --listen 127.0.0.1:4001 --remote 127.0.0.1:4000 --secret secret.key"
+    },
+    "Generate secret.key": {
+      "commandName": "Project",
+      "commandLineArgs": "genkey secret.key"
+    }
+  }
+}
