@@ -8,19 +8,55 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
+  <!-- NuGet package metadata. The version is set by CI from the git tag (v1.2.3 -> 1.2.3). -->
+  <PropertyGroup>
+    <PackageId>LibKyrka.Net</PackageId>
+    <Version>0.1.0-dev</Version>
+    <Authors>bivonblast</Authors>
+    <Description>.NET bindings for libkyrka, the sanctum protocol in library form: peer-to-peer, end-to-end encrypted tunnels with post-quantum (ML-KEM-1024) key exchange. Bring your own transport. Includes native binaries for win-x64, linux-x64, linux-arm64 and osx-arm64.</Description>
+    <PackageTags>sanctum;kyrka;libkyrka;encryption;tunnel;p2p;e2ee;post-quantum;ml-kem</PackageTags>
+    <PackageLicenseExpression>ISC</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
   <ItemGroup>
     <InternalsVisibleTo Include="LibKyrka.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="/" Visible="false" />
+    <None Include="../../THIRD-PARTY-NOTICES.txt" Pack="true" PackagePath="/" Visible="false" />
   </ItemGroup>
 
   <!--
     Native libkyrka binaries produced by native/build.sh, laid out as
     native/out/<rid>/<file>. They are copied to runtimes/<rid>/native/ in the
-    output folder of every project that references this one.
+    output folder of every project that references this one, and packed into
+    the same path in the NuGet package, where .NET picks the right one for
+    the platform automatically.
   -->
   <ItemGroup>
     <Content Include="$(KyrkaNativeOutput)*/*"
              Link="runtimes/%(RecursiveDir)native/%(Filename)%(Extension)"
-             CopyToOutputDirectory="PreserveNewest" />
+             CopyToOutputDirectory="PreserveNewest"
+             Pack="true"
+             PackagePath="runtimes/%(RecursiveDir)native/%(Filename)%(Extension)" />
   </ItemGroup>
+
+  <!-- A published package must work everywhere it claims to, so refuse to pack with a binary missing. -->
+  <ItemGroup>
+    <KyrkaRequiredNativeBinary Include="$(KyrkaNativeOutput)win-x64/kyrka.dll" />
+    <KyrkaRequiredNativeBinary Include="$(KyrkaNativeOutput)linux-x64/libkyrka.so" />
+    <KyrkaRequiredNativeBinary Include="$(KyrkaNativeOutput)linux-arm64/libkyrka.so" />
+    <KyrkaRequiredNativeBinary Include="$(KyrkaNativeOutput)osx-arm64/libkyrka.dylib" />
+  </ItemGroup>
+
+  <Target Name="KyrkaVerifyNativeBinaries" BeforeTargets="GenerateNuspec" Condition="'$(KyrkaAllowPartialPackage)' != 'true'">
+    <Error Condition="!Exists('%(KyrkaRequiredNativeBinary.Identity)')"
+           Text="Missing native binary %(KyrkaRequiredNativeBinary.Identity). Build it with native/build.sh (or set KyrkaAllowPartialPackage=true for a local test package)." />
+  </Target>
 
 </Project>
