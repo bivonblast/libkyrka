@@ -228,7 +228,7 @@ public sealed class KyrkaContextTests : IDisposable
     [Fact]
     public void ConfigureCathedral_WithZeroFlock_ThrowsParameterError()
     {
-        var config = new CathedralConfig { FlockSource = 0, Tunnel = 0x0102, Identity = 0xbadf00d };
+        var config = new CathedralConfig(flockSource: 0, tunnel: 0x0102, identity: 0xbadf00d);
 
         var exception = Assert.Throws<KyrkaException>(() => _context.ConfigureCathedral(config, (_, _) => { }));
 
@@ -323,12 +323,7 @@ public sealed class KyrkaContextTests : IDisposable
 
     private void ConfigureCathedral(CathedralPacketHandler handler)
     {
-        var config = new CathedralConfig
-        {
-            FlockSource = 0xdeadbeefcafebabe,
-            Tunnel = 0x0102,
-            Identity = 0xbadf00d,
-        };
+        var config = new CathedralConfig(flockSource: 0xdeadbeefcafebabe, tunnel: 0x0102, identity: 0xbadf00d);
 
         _context.ConfigureCathedral(config, handler);
     }

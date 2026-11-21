@@ -351,20 +351,28 @@ public sealed unsafe partial class KyrkaContext : IDisposable
 
         // Read in managed code so Unicode paths and error messages behave the
         // same on every platform; the bytes are wiped once they are loaded.
+        // The size is checked first so a wrong path to a large file fails
+        // without reading it, and again after reading in case it changed.
+        ThrowIfWrongKeyFileLength(path, new FileInfo(path).Length, expectedLength);
+
         var key = File.ReadAllBytes(path);
         try
         {
-            if (key.Length != expectedLength)
-            {
-                throw new InvalidDataException(
-                    $"Key file '{path}' must contain exactly {expectedLength} bytes, found {key.Length}.");
-            }
-
+            ThrowIfWrongKeyFileLength(path, key.Length, expectedLength);
             load(key);
         }
         finally
         {
             CryptographicOperations.ZeroMemory(key);
+        }
+    }
+
+    private static void ThrowIfWrongKeyFileLength(string path, long length, int expectedLength)
+    {
+        if (length != expectedLength)
+        {
+            throw new InvalidDataException(
+                $"Key file '{path}' must contain exactly {expectedLength} bytes, found {length}.");
         }
     }
 
