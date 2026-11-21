@@ -3,6 +3,7 @@ using System.Net;
 using System.Runtime.InteropServices;
 using System.Text;
 using LibKyrka.Interop;
+using LibKyrka.Tests.TestSupport;
 
 namespace LibKyrka.Tests;
 
@@ -20,14 +21,14 @@ public sealed unsafe class KyrkaEventFactoryTests
         Assert.Equal(80, sizeof(CathedralConfigNative));
         Assert.Equal(24, sizeof(KyrkaEventKeysInfoNative));
         Assert.Equal(16, sizeof(KyrkaEventPeerNative));
-        Assert.Equal(16, Marshal.OffsetOf<KyrkaEventKeysInfoNative>(nameof(KyrkaEventKeysInfoNative.PeerId)));
-        Assert.Equal(72, Marshal.OffsetOf<CathedralConfigNative>(nameof(CathedralConfigNative.Send)));
+        Assert.Equal(16, (int)Marshal.OffsetOf<KyrkaEventKeysInfoNative>(nameof(KyrkaEventKeysInfoNative.PeerId)));
+        Assert.Equal(72, (int)Marshal.OffsetOf<CathedralConfigNative>(nameof(CathedralConfigNative.Send)));
     }
 
     [Fact]
     public void ToEndPoint_ConvertsFromNetworkByteOrder()
     {
-        var address = BitConverter.ToUInt32([192, 168, 1, 20]);
+        var address = TestData.NetworkOrderAddress(192, 168, 1, 20);
         var port = BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness((ushort)4500) : (ushort)4500;
 
         var endPoint = KyrkaEventFactory.ToEndPoint(address, port);
@@ -84,7 +85,7 @@ public sealed unsafe class KyrkaEventFactoryTests
         var native = new KyrkaEventPeerNative
         {
             Type = 4,
-            Ip = BitConverter.ToUInt32([10, 0, 0, 7]),
+            Ip = TestData.NetworkOrderAddress(10, 0, 0, 7),
             Port = BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness((ushort)1234) : (ushort)1234,
             Flags = 1 << 1,
         };
@@ -115,16 +116,16 @@ public sealed unsafe class KyrkaEventFactoryTests
         Assert.Equal(Kyrka.PeersPerFlock, result.Peers.Count);
         Assert.Equal(1, result.Peers[0]);
         Assert.Equal(0, result.Peers[1]);
-        Assert.Equal(1, result.Peers[^1]);
+        Assert.Equal(1, result.Peers[Kyrka.PeersPerFlock - 1]);
     }
 
     [Fact]
     public void RemembranceReceived_SkipsEmptySlots()
     {
         var native = new KyrkaEventRemembranceNative { Type = 7 };
-        native.Ips[0] = BitConverter.ToUInt32([1, 2, 3, 4]);
+        native.Ips[0] = TestData.NetworkOrderAddress(1, 2, 3, 4);
         native.Ports[0] = BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness((ushort)4500) : 4500u;
-        native.Ips[5] = BitConverter.ToUInt32([5, 6, 7, 8]);
+        native.Ips[5] = TestData.NetworkOrderAddress(5, 6, 7, 8);
         native.Ports[5] = BitConverter.IsLittleEndian ? BinaryPrimitives.ReverseEndianness((ushort)4501) : 4501u;
 
         var result = Assert.IsType<RemembranceReceivedEvent>(KyrkaEventFactory.Create((KyrkaEventNative*)&native));

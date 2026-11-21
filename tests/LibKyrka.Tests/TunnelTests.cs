@@ -75,7 +75,7 @@ public sealed class TunnelTests
 
         var sequences = tunnel.Bob.Received.Select(packet => packet.Sequence).ToList();
         Assert.Equal(5, sequences.Count);
-        Assert.Equal(sequences.Order(), sequences);
+        Assert.Equal(sequences.OrderBy(sequence => sequence), sequences);
         Assert.Equal(sequences.Distinct(), sequences);
     }
 
@@ -85,8 +85,7 @@ public sealed class TunnelTests
         using var tunnel = LoopbackTunnel.WithSharedSecret();
         tunnel.Establish();
 
-        var payload = new byte[1400];
-        Random.Shared.NextBytes(payload);
+        var payload = TestData.RandomBytes(1400);
 
         tunnel.Alice.Context.HeavenInput(payload);
         tunnel.Deliver();
@@ -114,7 +113,7 @@ public sealed class TunnelTests
 
         tunnel.WireInterceptor = packet =>
         {
-            packet[^1] ^= 0x01;
+            packet[packet.Length - 1] ^= 0x01;
             return packet;
         };
 

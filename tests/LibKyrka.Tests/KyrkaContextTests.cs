@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+using LibKyrka.Tests.TestSupport;
 
 namespace LibKyrka.Tests;
 
@@ -23,7 +23,7 @@ public sealed class KyrkaContextTests : IDisposable
     [Fact]
     public void LoadSecret_WithCorrectLength_Succeeds()
     {
-        _context.LoadSecret(RandomNumberGenerator.GetBytes(Kyrka.KeyLength));
+        _context.LoadSecret(TestData.RandomBytes(Kyrka.KeyLength));
     }
 
     [Fact]
@@ -42,13 +42,13 @@ public sealed class KyrkaContextTests : IDisposable
     public void LoadCathedralSigningKey_RequiresSixtyFourBytes()
     {
         Assert.Throws<ArgumentException>(() => _context.LoadCathedralSigningKey(new byte[Kyrka.KeyLength]));
-        _context.LoadCathedralSigningKey(RandomNumberGenerator.GetBytes(Kyrka.CathedralSigningKeyLength));
+        _context.LoadCathedralSigningKey(TestData.RandomBytes(Kyrka.CathedralSigningKeyLength));
     }
 
     [Fact]
     public void LoadSecretFromFile_WithValidFile_Succeeds()
     {
-        using var file = new TemporaryFile(RandomNumberGenerator.GetBytes(Kyrka.KeyLength));
+        using var file = new TemporaryFile(TestData.RandomBytes(Kyrka.KeyLength));
 
         _context.LoadSecretFromFile(file.Path);
     }
@@ -101,7 +101,7 @@ public sealed class KyrkaContextTests : IDisposable
     [Fact]
     public void ManageKeys_WithoutPurgatoryHandler_ThrowsNoCallback()
     {
-        _context.LoadSecret(RandomNumberGenerator.GetBytes(Kyrka.KeyLength));
+        _context.LoadSecret(TestData.RandomBytes(Kyrka.KeyLength));
 
         var exception = Assert.Throws<KyrkaException>(_context.ManageKeys);
 
@@ -113,7 +113,7 @@ public sealed class KyrkaContextTests : IDisposable
     {
         var sent = new List<byte[]>();
         _context.SetPurgatoryHandler((packet, _) => sent.Add(packet.ToArray()));
-        _context.LoadSecret(RandomNumberGenerator.GetBytes(Kyrka.KeyLength));
+        _context.LoadSecret(TestData.RandomBytes(Kyrka.KeyLength));
 
         // The first call creates an offer, the second sends it.
         _context.ManageKeys();
@@ -129,7 +129,7 @@ public sealed class KyrkaContextTests : IDisposable
         var events = new List<KyrkaEvent>();
         _context.EventReceived += events.Add;
         _context.SetPurgatoryHandler((_, _) => { });
-        _context.LoadSecret(RandomNumberGenerator.GetBytes(Kyrka.KeyLength));
+        _context.LoadSecret(TestData.RandomBytes(Kyrka.KeyLength));
 
         _context.ManageKeys();
 
@@ -141,7 +141,7 @@ public sealed class KyrkaContextTests : IDisposable
     public void HandlerException_IsRethrownToTheCaller()
     {
         _context.SetPurgatoryHandler((_, _) => throw new InvalidOperationException("send failed"));
-        _context.LoadSecret(RandomNumberGenerator.GetBytes(Kyrka.KeyLength));
+        _context.LoadSecret(TestData.RandomBytes(Kyrka.KeyLength));
 
         _context.ManageKeys();
         var exception = Assert.Throws<InvalidOperationException>(_context.ManageKeys);
@@ -161,7 +161,7 @@ public sealed class KyrkaContextTests : IDisposable
                 throw new InvalidOperationException();
             }
         });
-        _context.LoadSecret(RandomNumberGenerator.GetBytes(Kyrka.KeyLength));
+        _context.LoadSecret(TestData.RandomBytes(Kyrka.KeyLength));
 
         _context.ManageKeys();
         Assert.Throws<InvalidOperationException>(_context.ManageKeys);
@@ -247,7 +247,7 @@ public sealed class KyrkaContextTests : IDisposable
     public void NotifyCathedral_WithoutSigningKey_ThrowsNoCosk()
     {
         ConfigureCathedral((_, _) => { });
-        _context.LoadCathedralSecret(RandomNumberGenerator.GetBytes(Kyrka.KeyLength));
+        _context.LoadCathedralSecret(TestData.RandomBytes(Kyrka.KeyLength));
 
         var exception = Assert.Throws<KyrkaException>(_context.NotifyCathedral);
 
@@ -335,9 +335,9 @@ public sealed class KyrkaContextTests : IDisposable
 
     private void LoadAllCathedralKeys()
     {
-        _context.LoadCathedralSecret(RandomNumberGenerator.GetBytes(Kyrka.KeyLength));
-        _context.LoadDeviceKek(RandomNumberGenerator.GetBytes(Kyrka.KeyLength));
-        _context.LoadCathedralSigningKey(RandomNumberGenerator.GetBytes(Kyrka.CathedralSigningKeyLength));
+        _context.LoadCathedralSecret(TestData.RandomBytes(Kyrka.KeyLength));
+        _context.LoadDeviceKek(TestData.RandomBytes(Kyrka.KeyLength));
+        _context.LoadCathedralSigningKey(TestData.RandomBytes(Kyrka.CathedralSigningKeyLength));
     }
 
     private sealed class TemporaryFile : IDisposable

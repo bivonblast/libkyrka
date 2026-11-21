@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Security.Cryptography;
 
 namespace LibKyrka.Tests.TestSupport;
 
@@ -11,7 +10,7 @@ namespace LibKyrka.Tests.TestSupport;
 internal sealed class LoopbackTunnel : IDisposable
 {
     public LoopbackTunnel()
-        : this(RandomNumberGenerator.GetBytes(Kyrka.KeyLength), RandomNumberGenerator.GetBytes(Kyrka.KeyLength))
+        : this(TestData.RandomBytes(Kyrka.KeyLength), TestData.RandomBytes(Kyrka.KeyLength))
     {
     }
 
@@ -30,7 +29,7 @@ internal sealed class LoopbackTunnel : IDisposable
 
     public static LoopbackTunnel WithSharedSecret()
     {
-        var secret = RandomNumberGenerator.GetBytes(Kyrka.KeyLength);
+        var secret = TestData.RandomBytes(Kyrka.KeyLength);
         return new LoopbackTunnel(secret, secret);
     }
 
@@ -88,8 +87,9 @@ internal sealed class LoopbackTunnel : IDisposable
 
     private void DeliverQueued(Peer from, Peer to)
     {
-        while (from.Outbox.TryDequeue(out var packet))
+        while (from.Outbox.Count > 0)
         {
+            var packet = from.Outbox.Dequeue();
             var delivered = WireInterceptor is null ? packet : WireInterceptor(packet);
             if (delivered is not null)
             {
