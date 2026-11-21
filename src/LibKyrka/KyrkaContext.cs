@@ -47,7 +47,7 @@ public sealed unsafe partial class KyrkaContext : IDisposable
 
         lock (Kyrka.NativeLock)
         {
-            var context = NativeMethods.kyrka_ctx_alloc(&OnNativeEvent, _handle.UserData);
+            var context = NativeMethods.kyrka_ctx_alloc(EventCallbackPointer, _handle.UserData);
             if (context == 0)
             {
                 _handle.Dispose();
@@ -77,7 +77,7 @@ public sealed unsafe partial class KyrkaContext : IDisposable
         {
             ThrowIfDisposed();
             _heavenHandler = handler;
-            Check(NativeMethods.kyrka_heaven_ifc(_handle, &OnNativeHeavenPacket, _handle.UserData), "kyrka_heaven_ifc");
+            Check(NativeMethods.kyrka_heaven_ifc(_handle, HeavenCallbackPointer, _handle.UserData), "kyrka_heaven_ifc");
         }
     }
 
@@ -93,7 +93,7 @@ public sealed unsafe partial class KyrkaContext : IDisposable
         {
             ThrowIfDisposed();
             _purgatoryHandler = handler;
-            Check(NativeMethods.kyrka_purgatory_ifc(_handle, &OnNativePurgatoryPacket, _handle.UserData), "kyrka_purgatory_ifc");
+            Check(NativeMethods.kyrka_purgatory_ifc(_handle, PurgatoryCallbackPointer, _handle.UserData), "kyrka_purgatory_ifc");
         }
     }
 
@@ -269,7 +269,7 @@ public sealed unsafe partial class KyrkaContext : IDisposable
             Group = config.Group,
             Hidden = config.Hidden ? 1 : 0,
             Remembrance = config.Remembrance ? 1 : 0,
-            Send = &OnNativeCathedralPacket,
+            Send = CathedralCallbackPointer,
         };
 
         lock (Kyrka.NativeLock)

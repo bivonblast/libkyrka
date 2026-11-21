@@ -1,0 +1,18 @@
+<Project>
+  <!--
+    Imported by .NET Framework projects that reference the LibKyrka.Net package.
+
+    Modern .NET picks the native library from runtimes/<rid>/native/ in the
+    package by itself. .NET Framework does not, so this copies the Windows x64
+    library to the same relative path in the output folder, where LibKyrka
+    loads it from. Only a 64-bit native library is shipped, so the
+    application must run as a 64-bit process: SDK-style projects do by
+    default, older project types need "Prefer 32-bit" turned off.
+  -->
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)../../runtimes/win-x64/native/kyrka.dll"
+          Link="runtimes/win-x64/native/kyrka.dll"
+          CopyToOutputDirectory="PreserveNewest"
+          Visible="false" />
+  </ItemGroup>
+</Project>

@@ -3,6 +3,10 @@
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
+  <ItemGroup Label="Library">
+    <!-- Span<T> and friends for the netstandard2.0 build. -->
+    <PackageVersion Include="System.Memory" Version="4.6.3" />
+  </ItemGroup>
   <ItemGroup Label="Tests">
     <PackageVersion Include="xunit.v3" Version="4.0.2" />
   </ItemGroup>

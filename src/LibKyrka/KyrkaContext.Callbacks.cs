@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using LibKyrka.Interop;
@@ -11,9 +10,22 @@ namespace LibKyrka;
 // rethrown by InvokeNative once the native call has returned.
 public sealed unsafe partial class KyrkaContext
 {
+    // The delegates are kept in static fields so the function pointers handed
+    // to libkyrka stay valid for the lifetime of the process. Delegates are
+    // used instead of [UnmanagedCallersOnly] because .NET Standard and .NET
+    // Framework do not support that attribute.
+    private static readonly NativeMethods.EventCallback EventCallback = OnNativeEvent;
+    private static readonly NativeMethods.PacketCallback HeavenCallback = OnNativeHeavenPacket;
+    private static readonly NativeMethods.PacketCallback PurgatoryCallback = OnNativePurgatoryPacket;
+    private static readonly NativeMethods.PacketCallback CathedralCallback = OnNativeCathedralPacket;
+
+    private static readonly nint EventCallbackPointer = Marshal.GetFunctionPointerForDelegate(EventCallback);
+    private static readonly nint HeavenCallbackPointer = Marshal.GetFunctionPointerForDelegate(HeavenCallback);
+    private static readonly nint PurgatoryCallbackPointer = Marshal.GetFunctionPointerForDelegate(PurgatoryCallback);
+    private static readonly nint CathedralCallbackPointer = Marshal.GetFunctionPointerForDelegate(CathedralCallback);
+
     private ExceptionDispatchInfo? _handlerException;
 
-    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static void OnNativeHeavenPacket(KyrkaPacketNative* packet, ulong sequence, nint userData)
     {
         var context = KyrkaSafeHandle.ContextFromUserData(userData);
@@ -33,7 +45,6 @@ public sealed unsafe partial class KyrkaContext
         }
     }
 
-    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static void OnNativePurgatoryPacket(KyrkaPacketNative* packet, ulong sequence, nint userData)
     {
         var context = KyrkaSafeHandle.ContextFromUserData(userData);
@@ -52,7 +63,6 @@ public sealed unsafe partial class KyrkaContext
         }
     }
 
-    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static void OnNativeCathedralPacket(KyrkaPacketNative* packet, ulong magic, nint userData)
     {
         var context = KyrkaSafeHandle.ContextFromUserData(userData);
@@ -71,7 +81,6 @@ public sealed unsafe partial class KyrkaContext
         }
     }
 
-    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     private static void OnNativeEvent(nint nativeContext, KyrkaEventNative* nativeEvent, nint userData)
     {
         var context = KyrkaSafeHandle.ContextFromUserData(userData);
