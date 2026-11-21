@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/LibKyrka.Benchmarks/LibKyrka.Benchmarks.csproj" />
+  </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/LibKyrka.Demo/LibKyrka.Demo.csproj" />
   </Folder>

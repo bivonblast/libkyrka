@@ -1,9 +1,11 @@
 # Build, test, package and publish LibKyrka.Net.
 #
-#   native  - build libkyrka for every supported platform
-#   test    - run the test suite and the demo on every platform
-#   pack    - create the NuGet package (only after all tests passed)
-#   publish - push to nuget.org (only for v* tags, only after pack)
+#   native      - build libkyrka for every supported platform
+#   test        - run the test suite and the demo on every platform
+#   performance - run the benchmarks and fail if performance regressed
+#                 against benchmarks/baseline (see benchmarks/README.md)
+#   pack        - create the NuGet package (only after both of the above)
+#   publish     - push to nuget.org (only for v* tags, only after pack)
 #
 # To release: push a tag such as v1.2.3. The package version is taken
 # from the tag. Publishing needs the NUGET_API_KEY secret in the "nuget"
@@ -109,9 +111,41 @@ jobs:
       - name: Demo smoke test
         run: dotnet run --project samples/LibKyrka.Demo -c Release --no-build -- loopback --count 3
 
+  # Linux x64 only: one platform is enough to notice a regression in the
+  # wrapper, and the hosted Linux runners are the most consistent.
+  performance:
+    name: Performance gate
+    needs: native
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: native-linux-x64
+          path: native/out
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      # Fails when performance regressed; the comparison table is shown
+      # on the run's summary page.
+      - name: Compare with the baseline
+        run: dotnet run -c Release --project benchmarks/LibKyrka.Benchmarks -- check
+
+      # Includes linux-x64.json: these results as a ready-to-commit
+      # baseline, for when a slowdown is intended.
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: benchmark-results
+          path: artifacts/benchmarks
+          if-no-files-found: ignore
+
   pack:
     name: Pack
-    needs: test
+    needs: [test, performance]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

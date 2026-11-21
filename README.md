@@ -127,6 +127,7 @@ handlers; queue the work and do it after the call returns.
 | --- | --- |
 | `src/LibKyrka` | The library. `Interop/` mirrors `libkyrka.h` one-to-one; `Polyfills/` fills the gaps in .NET Standard 2.0. |
 | `tests/LibKyrka.Tests` | Unit and end-to-end tests against the real native library. |
+| `benchmarks/` | Benchmarks and the performance gate that stops regressions from being released ([details](benchmarks/README.md)). |
 | `samples/LibKyrka.Demo` | Console demo for local debugging. |
 | `native/` | Upstream libkyrka (git submodule) and the scripts that build it. |
 | `.github/workflows/ci.yml` | Build, test, pack and publish pipeline. |
@@ -167,6 +168,15 @@ dotnet run --project samples/LibKyrka.Demo -- peer --listen 127.0.0.1:4001 --rem
 
 Visual Studio and Rider show the same modes as launch profiles.
 
+### Checking performance
+
+```sh
+dotnet run -c Release --project benchmarks/LibKyrka.Benchmarks -- check
+```
+
+This compares the benchmarks with the committed baseline, as CI does
+before every release. See [benchmarks/README.md](benchmarks/README.md).
+
 ### Creating a package locally
 
 ```sh
@@ -180,8 +190,9 @@ test package without the macOS binary, add `-p:KyrkaAllowPartialPackage=true`.
 
 1. Make sure CI on `main` is green.
 2. Tag and push: `git tag v1.0.0 && git push origin v1.0.0`.
-3. CI builds every platform, runs all tests, packs version `1.0.0`
-   and, only if everything passed, pushes it to nuget.org.
+3. CI builds every platform, runs all tests and the performance gate,
+   packs version `1.0.0` and, only if everything passed, pushes it to
+   nuget.org.
 
 One-time setup: create an API key on nuget.org, then add it as the secret
 `NUGET_API_KEY` in a GitHub environment named `nuget`
@@ -196,7 +207,9 @@ gives you a manual approval step before anything is published.
 3. If `KYRKA_API_VERSION` changed, update `Kyrka.ApiVersion`. The test
    `NativeApiVersion_MatchesTheVersionTheBindingsWereWrittenFor` fails until
    you do.
-4. Rebuild the native libraries, run the tests and commit the submodule change.
+4. Rebuild the native libraries, run the tests and the performance check,
+   and commit the submodule change. If the new version is slower, the
+   performance gate fails; commit an updated baseline to accept it.
 
 ## License
 

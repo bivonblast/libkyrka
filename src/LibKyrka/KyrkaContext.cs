@@ -66,6 +66,9 @@ public sealed unsafe partial class KyrkaContext : IDisposable
     /// <summary>True once <see cref="Dispose"/> has been called.</summary>
     public bool IsDisposed => _handle.IsClosed;
 
+    /// <summary>The native context, for benchmarks that bypass the wrapper.</summary>
+    internal KyrkaSafeHandle Handle => _handle;
+
     /// <summary>
     /// Sets the handler that receives decrypted plaintext (kyrka_heaven_ifc).
     /// </summary>

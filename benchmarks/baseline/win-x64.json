@@ -1,0 +1,51 @@
+{
+  "runtime": ".NET 11.0.0",
+  "operatingSystem": "Microsoft Windows 10.0.26200",
+  "recorded": "2026-11-21T22:26:40.3534307+00:00",
+  "results": {
+    "Calibration": {
+      "medianNanoseconds": 3900.938758129452,
+      "allocatedBytes": 0
+    },
+    "CreateAndDispose": {
+      "medianNanoseconds": 11929.789077437857,
+      "allocatedBytes": 104
+    },
+    "Encrypt/1400": {
+      "medianNanoseconds": 609.9724533873487,
+      "allocatedBytes": 0
+    },
+    "Encrypt/64": {
+      "medianNanoseconds": 258.4989876318433,
+      "allocatedBytes": 0
+    },
+    "EncryptDirect/1400": {
+      "medianNanoseconds": 520.918602602893,
+      "allocatedBytes": 0
+    },
+    "EncryptDirect/64": {
+      "medianNanoseconds": 186.73941432455595,
+      "allocatedBytes": 0
+    },
+    "ManageKeys": {
+      "medianNanoseconds": 115.30276016382295,
+      "allocatedBytes": 0
+    },
+    "RoundTrip/1400": {
+      "medianNanoseconds": 1176.2307849736221,
+      "allocatedBytes": 0
+    },
+    "RoundTrip/64": {
+      "medianNanoseconds": 506.06083323337737,
+      "allocatedBytes": 0
+    },
+    "RoundTripDirect/1400": {
+      "medianNanoseconds": 1013.8890266645504,
+      "allocatedBytes": 0
+    },
+    "RoundTripDirect/64": {
+      "medianNanoseconds": 340.4907933744935,
+      "allocatedBytes": 0
+    }
+  }
+}

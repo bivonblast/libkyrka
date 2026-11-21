@@ -1,0 +1,51 @@
+{
+  "runtime": ".NET 11.0.0",
+  "operatingSystem": "Ubuntu 26.04.1 LTS",
+  "recorded": "2026-11-21T22:33:06.9249383+00:00",
+  "results": {
+    "Calibration": {
+      "medianNanoseconds": 3825.288796736132,
+      "allocatedBytes": 0
+    },
+    "CreateAndDispose": {
+      "medianNanoseconds": 12516.60118159204,
+      "allocatedBytes": 104
+    },
+    "Encrypt/1400": {
+      "medianNanoseconds": 580.1891364798269,
+      "allocatedBytes": 0
+    },
+    "Encrypt/64": {
+      "medianNanoseconds": 230.03739232025225,
+      "allocatedBytes": 0
+    },
+    "EncryptDirect/1400": {
+      "medianNanoseconds": 517.252186356723,
+      "allocatedBytes": 0
+    },
+    "EncryptDirect/64": {
+      "medianNanoseconds": 164.9200878612755,
+      "allocatedBytes": 0
+    },
+    "ManageKeys": {
+      "medianNanoseconds": 90.18155588390695,
+      "allocatedBytes": 0
+    },
+    "RoundTrip/1400": {
+      "medianNanoseconds": 1103.0562190969813,
+      "allocatedBytes": 0
+    },
+    "RoundTrip/64": {
+      "medianNanoseconds": 430.03982322502804,
+      "allocatedBytes": 0
+    },
+    "RoundTripDirect/1400": {
+      "medianNanoseconds": 958.758007797569,
+      "allocatedBytes": 0
+    },
+    "RoundTripDirect/64": {
+      "medianNanoseconds": 282.65652526320685,
+      "allocatedBytes": 0
+    }
+  }
+}

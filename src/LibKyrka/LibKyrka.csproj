@@ -48,6 +48,8 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="LibKyrka.Tests" />
+    <!-- The benchmarks compare the wrapper against direct native calls. -->
+    <InternalsVisibleTo Include="LibKyrka.Benchmarks" />
   </ItemGroup>
 
   <ItemGroup>
