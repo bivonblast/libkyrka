@@ -18,13 +18,15 @@ internal sealed class UdpPeer : IDisposable
     private readonly string _name;
     private readonly Socket _socket;
     private readonly KyrkaContext _context = new();
-    private readonly byte[] _receiveBuffer = new byte[Kyrka.MaxPacketDataLength];
+    // Large enough for any UDP datagram, so oversized ones can be detected and dropped.
+    private readonly byte[] _receiveBuffer = new byte[ushort.MaxValue];
 
     public UdpPeer(string name, IPEndPoint listen, ReadOnlySpan<byte> secret)
     {
         _name = name;
 
         _socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+        IgnoreUnreachablePeer(_socket);
         _socket.Bind(listen);
 
         _context.EventReceived += OnEvent;
@@ -84,8 +86,28 @@ internal sealed class UdpPeer : IDisposable
         _socket.Dispose();
     }
 
+    /// <summary>
+    /// On Windows, a datagram sent to a port nobody listens on makes the next
+    /// Receive throw ConnectionReset. The peer simply is not running yet, so
+    /// turn that behavior off (SIO_UDP_CONNRESET).
+    /// </summary>
+    private static void IgnoreUnreachablePeer(Socket socket)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            const int SioUdpConnReset = unchecked((int)0x9800000C);
+            socket.IOControl(SioUdpConnReset, [0, 0, 0, 0], null);
+        }
+    }
+
     private void Receive(ReadOnlySpan<byte> datagram)
     {
+        if (datagram.Length > Kyrka.MaxPacketDataLength)
+        {
+            Log.Warn(_name, $"dropped a {datagram.Length} byte datagram, larger than any sanctum packet");
+            return;
+        }
+
         try
         {
             _context.PurgatoryInput(datagram);

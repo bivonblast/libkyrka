@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net;
+using System.Net.Sockets;
 using System.Security.Cryptography;
 using LibKyrka;
 using LibKyrka.Demo;
@@ -26,7 +27,7 @@ try
         _ => Usage(),
     };
 }
-catch (Exception exception) when (exception is ArgumentException or FormatException or IOException or KyrkaException)
+catch (Exception exception) when (exception is ArgumentException or FormatException or IOException or SocketException or KyrkaException)
 {
     Log.Error(exception.Message);
     return 1;
