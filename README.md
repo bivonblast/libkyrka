@@ -23,6 +23,10 @@ dotnet add package LibKyrka.Net
 | .NET Framework 4.6.2 – 4.8.1 | `netstandard2.0` | Windows x64; the process must be 64-bit (see below). |
 | Other .NET Standard 2.0 runtimes | `netstandard2.0` | For example .NET 8/9 (out of support), Mono, Unity. Expected to work but not tested. |
 
+The Linux binaries need glibc 2.27 or later, the same as .NET 10 itself
+(for example RHEL 8, Debian 12, Ubuntu 22.04). musl-based distributions
+such as Alpine are not supported yet.
+
 The tests run on .NET 10, .NET 11 and .NET Framework 4.7.2+.
 
 On .NET Framework, the package copies `kyrka.dll` into your output folder
@@ -96,7 +100,7 @@ dropped, as the protocol requires.
 
 ```csharp
 tunnel.ConfigureCathedral(
-    new CathedralConfig { FlockSource = 0xdeadbeefcafebabe, Tunnel = 0x0102, Identity = 0xbadf00d },
+    new CathedralConfig(flockSource: 0xdeadbeefcafebabe, tunnel: 0x0102, identity: 0xbadf00d),
     (packet, kind) => socket.SendTo(packet, kind == CathedralMessageKind.NatDetection ? natEndPoint : cathedralEndPoint));
 
 tunnel.LoadCathedralSecretFromFile("cathedral.secret");
@@ -197,8 +201,8 @@ gives you a manual approval step before anything is published.
 ## License
 
 ISC, the same license as libkyrka. The package bundles libkyrka, nyfe,
-the ML-KEM-1024 reference implementation and libsodium; see
-[THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).
+the ML-KEM-1024 reference implementation and libsodium; their licenses
+are in THIRD-PARTY-NOTICES.txt, in this repository and in the package.
 
 This is an independent .NET binding and is not affiliated with the
 libkyrka or sanctum projects.

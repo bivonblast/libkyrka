@@ -21,6 +21,12 @@ on:
 permissions:
   contents: read
 
+# A newer push to the same branch or pull request cancels the older run.
+# Tag runs are never cancelled, so a release always completes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
 env:
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
@@ -42,7 +48,21 @@ jobs:
         with:
           submodules: true
 
+      # The binary only changes when the libkyrka commit or the build
+      # scripts change, so it is cached on exactly those inputs.
+      - name: Compute cache key
+        id: key
+        shell: bash
+        run: echo "value=native-${{ matrix.rid }}-$(git rev-parse HEAD:native/libkyrka)-${{ hashFiles('native/*.sh', 'native/Dockerfile') }}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v6
+        id: cache
+        with:
+          path: native/out/${{ matrix.rid }}
+          key: ${{ steps.key.outputs.value }}
+
       - name: Build libkyrka
+        if: steps.cache.outputs.cache-hit != 'true'
         run: sh ${{ matrix.script }} ${{ matrix.rid }}
 
       - uses: actions/upload-artifact@v7
@@ -143,8 +163,10 @@ jobs:
 
       # The .snupkg symbol package is pushed together with the .nupkg.
       - name: Push
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
         run: >
           dotnet nuget push "artifacts/packages/*.nupkg"
-          --api-key "${{ secrets.NUGET_API_KEY }}"
+          --api-key "$NUGET_API_KEY"
           --source https://api.nuget.org/v3/index.json
           --skip-duplicate
