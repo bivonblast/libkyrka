@@ -173,6 +173,21 @@ generate_export_lists() {
 	} > "$WORK/exports.def"
 }
 
+# .NET 10 supports glibc 2.27 and later, so the library must not need more.
+GLIBC_BASELINE=2.27
+
+# Only used for Linux builds, which always have GNU sort (-V).
+check_glibc_baseline() {
+	objdump="${HOST:+$HOST-}objdump"
+	needed="$("$objdump" -T "$1" | grep -o 'GLIBC_[0-9.]*' | \
+	    sed 's/GLIBC_//' | sort -uV | tail -n 1)"
+	newest="$(printf '%s\n%s\n' "$needed" "$GLIBC_BASELINE" | sort -V | tail -n 1)"
+
+	[ "$newest" = "$GLIBC_BASELINE" ] || \
+	    fail "$LIBFILE needs glibc $needed, newer than the $GLIBC_BASELINE baseline"
+	log "glibc requirement: $needed (baseline $GLIBC_BASELINE)"
+}
+
 link_shared_library() {
 	log "linking $LIBFILE"
 	archive="$WORK/libkyrka/libkyrka.a"
@@ -186,6 +201,7 @@ link_shared_library() {
 		    "$sodium" -Wl,--version-script="$WORK/exports.map" \
 		    -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now
 		"$STRIP" --strip-unneeded "$target"
+		check_glibc_baseline "$target"
 		;;
 	windows)
 		"$CC" -shared -o "$target" "$WORK/exports.def" \

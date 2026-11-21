@@ -21,15 +21,23 @@ for rid in "$@"; do
 	# Linux builds use an old glibc for compatibility; the Windows
 	# build needs a newer mingw-w64 (see Dockerfile).
 	case "$rid" in
-	win-*) base=ubuntu:24.04 ;;
-	*) base=ubuntu:22.04 ;;
+	win-*) toolchain=windows base=ubuntu:24.04 ;;
+	*) toolchain=linux base=ubuntu:20.04 ;;
 	esac
 
-	image="libkyrka-net-native-build:$(echo "$base" | tr ':' '-')"
-	docker build -q --build-arg BASE_IMAGE="$base" -t "$image" "$HERE" >/dev/null
+	image="libkyrka-net-native-build:$toolchain"
+	docker build -q --build-arg BASE_IMAGE="$base" \
+	    --build-arg TOOLCHAIN="$toolchain" -t "$image" "$HERE" >/dev/null
+
+	# On Linux, run as the calling user so native/out is not owned by
+	# root. Docker Desktop (Windows, macOS) maps file ownership itself.
+	user=""
+	if [ "$(uname -s)" = Linux ]; then
+		user="--user=$(id -u):$(id -g)"
+	fi
 
 	# MSYS_NO_PATHCONV stops Git Bash on Windows from rewriting the paths.
-	MSYS_NO_PATHCONV=1 docker run --rm \
+	MSYS_NO_PATHCONV=1 docker run --rm $user \
 	    -v "$HERE:/src/native" \
 	    -e KYRKA_WORK_DIR=/tmp/work \
 	    "$image" sh /src/native/build.sh "$rid"
