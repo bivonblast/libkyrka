@@ -8,6 +8,19 @@
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
 
+    <!--
+      Supply chain: packages.lock.json records the exact version and content
+      hash of every package, including transitive ones, and CI refuses to
+      restore anything else. After changing a version, update the lock
+      files by running dotnet restore with the force-evaluate option.
+    -->
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <RestoreLockedMode Condition="'$(ContinuousIntegrationBuild)' == 'true'">true</RestoreLockedMode>
+
+    <!-- Fail the build (warnings are errors) if any package, direct or transitive, has a known vulnerability. -->
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+
     <!-- Where native/build.sh places the compiled libkyrka binaries. -->
     <KyrkaNativeOutput>$(MSBuildThisFileDirectory)native/out/</KyrkaNativeOutput>
   </PropertyGroup>
