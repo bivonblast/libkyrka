@@ -1,19 +1,32 @@
-# Weekly pull requests for outdated dependencies. Each one runs the full
-# CI, so an update is only merged once every platform passes.
+# Weekly pull requests for outdated dependencies, so security fixes are
+# picked up. CI (tests and the performance gate) runs on each of them.
 version: 2
 updates:
-  - package-ecosystem: nuget
-    directory: /
-    schedule:
-      interval: weekly
-
+  # Workflow actions, pinned to commit SHAs in ci.yml.
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
 
-  # Proposes new upstream libkyrka commits; prefer moving to release tags.
+  # NuGet packages (Directory.Packages.props and the lock files).
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      nuget:
+        patterns: ["*"]
+
+  # The libkyrka submodule. Read "Updating libkyrka" in README.md before
+  # merging: the bindings may need changes.
   - package-ecosystem: gitsubmodule
     directory: /
     schedule:
       interval: weekly
+
+# The Ubuntu images of the native build (native/Dockerfile) are left out on
+# purpose: Ubuntu 20.04 is what gives the Linux binaries their old glibc
+# requirement, and Dependabot would propose newer releases.

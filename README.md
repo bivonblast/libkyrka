@@ -107,8 +107,10 @@ Peer addresses, ambry rollovers and federated cathedrals arrive as
 libkyrka is not thread-safe, not even across separate contexts. The
 bindings serialize every native call on one process-wide lock, so using
 contexts from several threads is safe, but the library is designed for a
-single-threaded event loop. Do not call into a context from inside its own
-handlers; queue the work and do it after the call returns.
+single-threaded event loop. Handlers must not call into libkyrka (any
+context), because libkyrka is not re-entrant; doing so throws
+`InvalidOperationException`. Queue the work and do it after the call
+returns.
 
 ## Repository layout
 
@@ -120,6 +122,7 @@ handlers; queue the work and do it after the call returns.
 | `samples/LibKyrka.Demo` | Console demo for local debugging. |
 | `native/` | Upstream libkyrka (git submodule) and the scripts that build it. |
 | `.github/workflows/ci.yml` | Build, test, pack and publish pipeline. |
+| `.github/dependabot.yml` | Weekly update pull requests for actions, NuGet packages and libkyrka. |
 
 ## Building from source
 
@@ -182,10 +185,21 @@ test package without the macOS binary, add `-p:KyrkaAllowPartialPackage=true`.
    packs version `1.0.0` and, only if everything passed, pushes it to
    nuget.org.
 
-One-time setup: create an API key on nuget.org, then add it as the secret
-`NUGET_API_KEY` in a GitHub environment named `nuget`
-(Settings > Environments). Adding required reviewers to that environment
-gives you a manual approval step before anything is published.
+One-time setup. Publishing uses nuget.org
+[trusted publishing](https://learn.microsoft.com/nuget/nuget-org/trusted-publishing),
+so no API key is stored anywhere:
+
+1. On nuget.org, open **Trusted Publishing** under your account and add a
+   policy for this GitHub repository, workflow file `ci.yml` and
+   environment `nuget`.
+2. On GitHub, create an environment named `nuget` (Settings >
+   Environments). Adding required reviewers to it gives you a manual
+   approval step before anything is published.
+3. Add a repository variable `NUGET_USER` (Settings > Secrets and
+   variables > Actions > Variables) with your nuget.org account name.
+
+Each release also gets a signed build provenance attestation; see
+[SECURITY.md](SECURITY.md).
 
 ## Updating libkyrka
 
@@ -198,6 +212,11 @@ gives you a manual approval step before anything is published.
 4. Rebuild the native libraries, run the tests and the performance check,
    and commit the submodule change. If the new version is slower, the
    performance gate fails; commit an updated baseline to accept it.
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for how to report a vulnerability and what
+the bindings and the build do to stay safe.
 
 ## License
 

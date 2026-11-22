@@ -8,8 +8,12 @@
 #   publish     - push to nuget.org (only for v* tags, only after pack)
 #
 # To release: push a tag such as v1.2.3. The package version is taken
-# from the tag. Publishing needs the NUGET_API_KEY secret in the "nuget"
-# environment (Settings > Environments).
+# from the tag. Publishing uses nuget.org trusted publishing, so there is
+# no API key to leak; see "Releasing" in README.md for the one-time setup.
+#
+# Third-party actions are pinned to full commit SHAs, so a moved or
+# compromised tag cannot change what runs here. Dependabot keeps them
+# up to date (.github/dependabot.yml).
 
 name: CI
 
@@ -46,18 +50,23 @@ jobs:
           - { rid: linux-arm64, os: ubuntu-latest, script: native/build-docker.sh }
           - { rid: osx-arm64, os: macos-latest, script: native/build.sh }
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: true
+          persist-credentials: false
 
       # The binary only changes when the libkyrka commit or the build
-      # scripts change, so it is cached on exactly those inputs.
+      # scripts change, so it is cached on exactly those inputs. Releases
+      # never use the cache: the binaries that are published are always
+      # built from source in the release run itself.
       - name: Compute cache key
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         id: key
         shell: bash
         run: echo "value=native-${{ matrix.rid }}-$(git rev-parse HEAD:native/libkyrka)-${{ hashFiles('native/*.sh', 'native/Dockerfile') }}" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/cache@v6
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         id: cache
         with:
           path: native/out/${{ matrix.rid }}
@@ -67,7 +76,7 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         run: sh ${{ matrix.script }} ${{ matrix.rid }}
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: native-${{ matrix.rid }}
           path: native/out
@@ -86,9 +95,11 @@ jobs:
           - { rid: linux-arm64, os: ubuntu-24.04-arm }
           - { rid: osx-arm64, os: macos-latest }
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: native-*
           path: native/out
@@ -96,7 +107,7 @@ jobs:
 
       # The SDK from global.json, plus .NET 10 so the net10.0 tests run on
       # the real .NET 10 runtime.
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
           dotnet-version: '10.0.x'
@@ -117,14 +128,16 @@ jobs:
     needs: native
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: native-linux-x64
           path: native/out
 
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
 
@@ -135,7 +148,7 @@ jobs:
 
       # Includes linux-x64.json: these results as a ready-to-commit
       # baseline, for when a slowdown is intended.
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: benchmark-results
@@ -147,15 +160,17 @@ jobs:
     needs: [test, performance]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: native-*
           path: native/out
           merge-multiple: true
 
-      - uses: actions/setup-dotnet@v6
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           global-json-file: global.json
 
@@ -172,7 +187,7 @@ jobs:
       - name: Pack
         run: dotnet pack src/LibKyrka -c Release -o artifacts/packages -p:Version=${{ steps.version.outputs.value }}
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: packages
           path: artifacts/packages
@@ -184,20 +199,40 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     environment: nuget
+    # Only this job may request an OIDC token: for trusted publishing and
+    # for signing the provenance attestation.
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: packages
           path: artifacts/packages
 
-      - uses: actions/setup-dotnet@v6
+      # A signed record of which commit and workflow run built the package.
+      # Verify with: gh attestation verify <file.nupkg> --repo <owner/repo>
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: artifacts/packages/*.nupkg
+
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
         with:
           dotnet-version: '11.0.x'
+
+      # Trusted publishing: exchanges this run's OIDC token for an API key
+      # that is valid for one hour. NUGET_USER is a repository variable
+      # holding the nuget.org account name (not a secret).
+      - uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+        id: nuget
+        with:
+          user: ${{ vars.NUGET_USER }}
 
       # The .snupkg symbol package is pushed together with the .nupkg.
       - name: Push
         env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+          NUGET_API_KEY: ${{ steps.nuget.outputs.NUGET_API_KEY }}
         run: >
           dotnet nuget push "artifacts/packages/*.nupkg"
           --api-key "$NUGET_API_KEY"
