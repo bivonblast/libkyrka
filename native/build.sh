@@ -43,20 +43,28 @@ fail() {
 }
 
 # Select the toolchain for the requested RID.
+#
+# libkyrka and libsodium already compile with a stack protector and
+# FORTIFY_SOURCE and link with RELRO. HARDENING adds what they leave out
+# on Linux: stack clash protection and control-flow protection (CET on
+# x64, BTI/PAC on arm64).
 configure_toolchain() {
 	HOST=""
 	AR=ar
 	STRIP=strip
+	HARDENING=""
 
 	case "$RID" in
 	linux-x64)
 		CC=gcc
 		OSNAME=linux
 		LIBFILE=libkyrka.so
+		HARDENING="-fstack-clash-protection -fcf-protection=full"
 		;;
 	linux-arm64)
 		OSNAME=linux
 		LIBFILE=libkyrka.so
+		HARDENING="-fstack-clash-protection -mbranch-protection=standard"
 		if [ "$(uname -m)" = "aarch64" ]; then
 			CC=gcc
 		else
@@ -122,6 +130,10 @@ build_libsodium() {
 
 	(
 		cd "$WORK/libsodium-src"
+		# Setting CFLAGS replaces libsodium's default -O3, so keep it.
+		if [ -n "$HARDENING" ]; then
+			export CFLAGS="-O3 $HARDENING"
+		fi
 		./configure ${HOST:+--host=$HOST} CC="$CC" \
 		    --prefix="$WORK/sodium" \
 		    --disable-shared --enable-static --with-pic \
@@ -149,7 +161,8 @@ build_libkyrka() {
 	    -name 'Makefile' -o -name '*.mk' -o -name 'RELEASE' \) \
 	    -exec perl -pi -e 's/\r$//' {} +
 
-	make -C "$WORK/libkyrka" -j1 \
+	# The Makefile appends its own flags to CFLAGS from the environment.
+	CFLAGS="$HARDENING" make -C "$WORK/libkyrka" -j1 \
 	    CC="$CC" AR="$AR" OSNAME="$OSNAME" \
 	    LIBSODIUM_PATH="$WORK/sodium" >/dev/null
 }
