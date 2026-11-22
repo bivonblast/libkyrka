@@ -21,7 +21,29 @@ internal sealed class UdpPeer : IDisposable
     // Large enough for any UDP datagram, so oversized ones can be detected and dropped.
     private readonly byte[] _receiveBuffer = new byte[ushort.MaxValue];
 
+    /// <summary>Creates a peer with the shared secret in a key file.</summary>
+    public UdpPeer(string name, IPEndPoint listen, string secretPath)
+        : this(name, listen)
+    {
+        try
+        {
+            _context.LoadSecretFromFile(secretPath);
+        }
+        catch
+        {
+            Dispose();
+            throw;
+        }
+    }
+
+    /// <summary>Creates a peer with a shared secret held in memory.</summary>
     public UdpPeer(string name, IPEndPoint listen, ReadOnlySpan<byte> secret)
+        : this(name, listen)
+    {
+        _context.LoadSecret(secret);
+    }
+
+    private UdpPeer(string name, IPEndPoint listen)
     {
         _name = name;
 
@@ -45,7 +67,6 @@ internal sealed class UdpPeer : IDisposable
         });
 
         _context.SetMtu(1422);
-        _context.LoadSecret(secret);
     }
 
     /// <summary>Where encrypted packets are sent. Nothing is sent while this is null.</summary>

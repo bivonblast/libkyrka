@@ -27,7 +27,7 @@ try
         _ => Usage(),
     };
 }
-catch (Exception exception) when (exception is ArgumentException or FormatException or IOException or SocketException or KyrkaException)
+catch (Exception exception) when (exception is ArgumentException or FormatException or IOException or UnauthorizedAccessException or SocketException or KyrkaException)
 {
     Log.Error(exception.Message);
     return 1;
@@ -90,9 +90,7 @@ static int RunPeer(string[] options)
     var remote = IPEndPoint.Parse(Option(options, "--remote") ?? throw new ArgumentException("--remote is required"));
     var secretPath = Option(options, "--secret") ?? throw new ArgumentException("--secret is required");
 
-    var secret = File.ReadAllBytes(secretPath);
-    using var peer = new UdpPeer("peer", listen, secret) { Remote = remote };
-    CryptographicOperations.ZeroMemory(secret);
+    using var peer = new UdpPeer("peer", listen, secretPath) { Remote = remote };
 
     Console.WriteLine($"listening on {listen}, peer at {remote}. Type a message and press Enter to send.");
 
@@ -130,7 +128,27 @@ static int RunPeer(string[] options)
 
 static int GenerateKey(string path)
 {
-    File.WriteAllBytes(path, RandomNumberGenerator.GetBytes(Kyrka.KeyLength));
+    // Never overwrite an existing key, make the file readable by its owner
+    // only (on Linux and macOS), and write without a buffer so no copy of
+    // the key is left in memory.
+    var options = new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write, BufferSize = 0 };
+    if (!OperatingSystem.IsWindows())
+    {
+        options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+    }
+
+    Span<byte> secret = stackalloc byte[Kyrka.KeyLength];
+    try
+    {
+        RandomNumberGenerator.Fill(secret);
+        using var file = new FileStream(path, options);
+        file.Write(secret);
+    }
+    finally
+    {
+        CryptographicOperations.ZeroMemory(secret);
+    }
+
     Console.WriteLine($"wrote a new {Kyrka.KeyLength}-byte secret to {Path.GetFullPath(path)}");
     return 0;
 }
