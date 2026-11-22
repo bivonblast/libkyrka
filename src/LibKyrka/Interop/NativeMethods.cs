@@ -1,4 +1,8 @@
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+
+[assembly: DisableRuntimeMarshalling]
 
 namespace LibKyrka.Interop;
 
@@ -7,105 +11,167 @@ namespace LibKyrka.Interop;
 /// Names and signatures mirror the C header one-to-one so the two can be
 /// compared side by side when upstream changes.
 /// </summary>
-/// <remarks>
-/// Plain <see cref="DllImportAttribute"/> is used instead of the newer
-/// LibraryImport source generator so that one set of declarations works on
-/// every target framework, including .NET Standard 2.0. Callbacks are passed
-/// as raw function pointers; see <see cref="KyrkaContext"/>'s callback part.
-/// </remarks>
-internal static unsafe class NativeMethods
+internal static unsafe partial class NativeMethods
 {
     /// <summary>Resolves to kyrka.dll, libkyrka.so or libkyrka.dylib.</summary>
-    internal const string LibraryName = "kyrka";
+    private const string LibraryName = "kyrka";
 
-    static NativeMethods() => NativeLibraryLoader.Register();
+    static NativeMethods()
+    {
+        NativeLibrary.SetDllImportResolver(typeof(NativeMethods).Assembly, ResolveLibrary);
+    }
 
-    /// <summary>void (*cb)(KYRKA *, union kyrka_event *, void *)</summary>
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    internal delegate void EventCallback(nint context, KyrkaEventNative* nativeEvent, nint userData);
+    [LibraryImport(LibraryName)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial byte* kyrka_version();
 
-    /// <summary>void (*cb)(const void *, size_t, u_int64_t, void *) as used by heaven, purgatory and cathedral.</summary>
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    internal delegate void PacketCallback(KyrkaPacketNative* packet, ulong value, nint userData);
+    [LibraryImport(LibraryName)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial uint kyrka_last_error(KyrkaSafeHandle ctx);
 
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern byte* kyrka_version();
+    [LibraryImport(LibraryName)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nint kyrka_ctx_alloc(
+        delegate* unmanaged[Cdecl]<nint, KyrkaEventNative*, nint, void> eventCallback,
+        nint userData);
 
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern uint kyrka_last_error(KyrkaSafeHandle ctx);
+    [LibraryImport(LibraryName)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void kyrka_ctx_free(nint ctx);
 
-    /// <remarks><c>eventCallback</c> is an <see cref="EventCallback"/> function pointer.</remarks>
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern nint kyrka_ctx_alloc(nint eventCallback, nint userData);
+    [LibraryImport(LibraryName)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void kyrka_emergency_erase();
 
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern void kyrka_ctx_free(nint ctx);
+    [LibraryImport(LibraryName)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial int kyrka_peer_timeout(KyrkaSafeHandle ctx);
 
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern void kyrka_emergency_erase();
+    [LibraryImport(LibraryName)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial int kyrka_shroud_enable(KyrkaSafeHandle ctx);
 
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int kyrka_peer_timeout(KyrkaSafeHandle ctx);
+    [LibraryImport(LibraryName)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial int kyrka_p2p_active(KyrkaSafeHandle ctx, int active);
 
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int kyrka_shroud_enable(KyrkaSafeHandle ctx);
+    [LibraryImport(LibraryName)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial int kyrka_key_manage(KyrkaSafeHandle ctx);
 
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int kyrka_p2p_active(KyrkaSafeHandle ctx, int active);
+    [LibraryImport(LibraryName)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial int kyrka_mtu_size(KyrkaSafeHandle ctx, ushort mtu);
 
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int kyrka_key_manage(KyrkaSafeHandle ctx);
+    [LibraryImport(LibraryName)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial int kyrka_secret_load(KyrkaSafeHandle ctx, byte* secret, nuint length);
 
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int kyrka_mtu_size(KyrkaSafeHandle ctx, ushort mtu);
+    [LibraryImport(LibraryName)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial int kyrka_device_kek_load(KyrkaSafeHandle ctx, byte* secret, nuint length);
 
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int kyrka_secret_load(KyrkaSafeHandle ctx, byte* secret, nuint length);
+    [LibraryImport(LibraryName)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial int kyrka_cathedral_cosk_load(KyrkaSafeHandle ctx, byte* key, nuint length);
 
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int kyrka_device_kek_load(KyrkaSafeHandle ctx, byte* secret, nuint length);
+    [LibraryImport(LibraryName)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial int kyrka_cathedral_secret_load(KyrkaSafeHandle ctx, byte* secret, nuint length);
 
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int kyrka_cathedral_cosk_load(KyrkaSafeHandle ctx, byte* key, nuint length);
+    [LibraryImport(LibraryName)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial int kyrka_heaven_ifc(
+        KyrkaSafeHandle ctx,
+        delegate* unmanaged[Cdecl]<KyrkaPacketNative*, ulong, nint, void> callback,
+        nint userData);
 
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int kyrka_cathedral_secret_load(KyrkaSafeHandle ctx, byte* secret, nuint length);
+    [LibraryImport(LibraryName)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial int kyrka_heaven_input(KyrkaSafeHandle ctx, KyrkaPacketNative* packet);
 
-    /// <remarks><c>callback</c> is a <see cref="PacketCallback"/> function pointer.</remarks>
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int kyrka_heaven_ifc(KyrkaSafeHandle ctx, nint callback, nint userData);
+    [LibraryImport(LibraryName)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial int kyrka_purgatory_ifc(
+        KyrkaSafeHandle ctx,
+        delegate* unmanaged[Cdecl]<KyrkaPacketNative*, ulong, nint, void> callback,
+        nint userData);
 
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int kyrka_heaven_input(KyrkaSafeHandle ctx, KyrkaPacketNative* packet);
+    [LibraryImport(LibraryName)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial int kyrka_purgatory_input(KyrkaSafeHandle ctx, KyrkaPacketNative* packet);
 
-    /// <remarks><c>callback</c> is a <see cref="PacketCallback"/> function pointer.</remarks>
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int kyrka_purgatory_ifc(KyrkaSafeHandle ctx, nint callback, nint userData);
+    [LibraryImport(LibraryName)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial int kyrka_cathedral_notify(KyrkaSafeHandle ctx);
 
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int kyrka_purgatory_input(KyrkaSafeHandle ctx, KyrkaPacketNative* packet);
+    [LibraryImport(LibraryName)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial int kyrka_cathedral_nat_detection(KyrkaSafeHandle ctx);
 
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int kyrka_cathedral_notify(KyrkaSafeHandle ctx);
+    [LibraryImport(LibraryName)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial int kyrka_cathedral_liturgy(KyrkaSafeHandle ctx, byte* peers, nuint length);
 
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int kyrka_cathedral_nat_detection(KyrkaSafeHandle ctx);
+    [LibraryImport(LibraryName)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial int kyrka_cathedral_config(KyrkaSafeHandle ctx, CathedralConfigNative* config);
 
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int kyrka_cathedral_liturgy(KyrkaSafeHandle ctx, byte* peers, nuint length);
+    [LibraryImport(LibraryName)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial byte* kyrka_packet_recvbuf(KyrkaSafeHandle ctx, KyrkaPacketNative* packet, nuint* length);
 
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern int kyrka_cathedral_config(KyrkaSafeHandle ctx, CathedralConfigNative* config);
+    [LibraryImport(LibraryName)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial byte* kyrka_packet_sendbuf(KyrkaSafeHandle ctx, KyrkaPacketNative* packet, nuint* length);
 
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern byte* kyrka_packet_recvbuf(KyrkaSafeHandle ctx, KyrkaPacketNative* packet, nuint* length);
+    [LibraryImport(LibraryName)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial byte* kyrka_packet_databuf(KyrkaSafeHandle ctx, KyrkaPacketNative* packet, nuint* length);
 
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern byte* kyrka_packet_sendbuf(KyrkaSafeHandle ctx, KyrkaPacketNative* packet, nuint* length);
+    [LibraryImport(LibraryName)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial byte* kyrka_packet_data(KyrkaPacketNative* packet);
 
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern byte* kyrka_packet_databuf(KyrkaSafeHandle ctx, KyrkaPacketNative* packet, nuint* length);
+    /// <summary>
+    /// Finds the native library when the default probing does not.
+    /// </summary>
+    /// <remarks>
+    /// Applications restored from the NuGet package find the library through
+    /// their deps.json. Projects that reference LibKyrka directly (the tests
+    /// and the demo) only get the files copied to runtimes/&lt;rid&gt;/native/,
+    /// so this resolver probes that folder as a fallback.
+    /// </remarks>
+    private static nint ResolveLibrary(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)
+    {
+        if (libraryName != LibraryName)
+        {
+            return 0;
+        }
 
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern byte* kyrka_packet_data(KyrkaPacketNative* packet);
+        if (NativeLibrary.TryLoad(libraryName, assembly, searchPath, out var handle))
+        {
+            return handle;
+        }
+
+        var candidate = Path.Combine(
+            AppContext.BaseDirectory, "runtimes", PortableRuntimeIdentifier(), "native", PlatformFileName());
+
+        return NativeLibrary.TryLoad(candidate, out handle) ? handle : 0;
+    }
+
+    private static string PortableRuntimeIdentifier()
+    {
+        var os = OperatingSystem.IsWindows() ? "win"
+            : OperatingSystem.IsMacOS() ? "osx"
+            : "linux";
+
+        var architecture = RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant();
+        return $"{os}-{architecture}";
+    }
+
+    private static string PlatformFileName() =>
+        OperatingSystem.IsWindows() ? "kyrka.dll"
+        : OperatingSystem.IsMacOS() ? "libkyrka.dylib"
+        : "libkyrka.so";
 }

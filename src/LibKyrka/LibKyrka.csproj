@@ -1,41 +1,23 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    net10.0:        the current LTS and everything newer (.NET 11, ...).
-    netstandard2.0: everything older, most importantly .NET Framework 4.6.2+,
-                    but also .NET 8/9 (out of support), Mono and Unity.
-    Both builds compile the same source; the gaps in .NET Standard are filled
-    by the files in Polyfills/, which are only compiled for that target.
+    net10.0 is the oldest supported .NET (the current LTS); applications on
+    newer versions such as .NET 11 use this build as well.
   -->
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
+    <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>LibKyrka</RootNamespace>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsAotCompatible>true</IsAotCompatible>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">true</IsAotCompatible>
-
-    <!-- Fails the pack if the two builds expose different public APIs. -->
-    <EnablePackageValidation>true</EnablePackageValidation>
   </PropertyGroup>
-
-  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
-    <PackageReference Include="System.Memory" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(TargetFramework)' != 'netstandard2.0'">
-    <Compile Remove="Polyfills/**" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Remove="Polyfills/README.md" />
-  </ItemGroup>
 
   <!-- NuGet package metadata. The version is set by CI from the git tag (v1.2.3 -> 1.2.3). -->
   <PropertyGroup>
     <PackageId>LibKyrka.Net</PackageId>
     <Version>0.1.0-dev</Version>
     <Authors>bivonblast</Authors>
-    <Description>.NET bindings for libkyrka, the sanctum protocol in library form: peer-to-peer, end-to-end encrypted tunnels with post-quantum (ML-KEM-1024) key exchange. Bring your own transport. Supports .NET 10+, .NET Framework 4.6.2+ and other .NET Standard 2.0 platforms. Includes native binaries for win-x64, linux-x64, linux-arm64 and osx-arm64.</Description>
+    <Description>.NET bindings for libkyrka, the sanctum protocol in library form: peer-to-peer, end-to-end encrypted tunnels with post-quantum (ML-KEM-1024) key exchange. Bring your own transport. Supports .NET 10 and later. Includes native binaries for win-x64, linux-x64, linux-arm64 and osx-arm64.</Description>
     <PackageTags>sanctum;kyrka;libkyrka;encryption;tunnel;p2p;e2ee;post-quantum;ml-kem</PackageTags>
     <PackageLicenseExpression>ISC</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -55,9 +37,6 @@
   <ItemGroup>
     <None Include="../../README.md" Pack="true" PackagePath="/" Visible="false" />
     <None Include="../../THIRD-PARTY-NOTICES.txt" Pack="true" PackagePath="/" Visible="false" />
-
-    <!-- .NET Framework support: copies the native library into the application (see the file). -->
-    <None Include="build/LibKyrka.Net.targets" Pack="true" PackagePath="build/net462/;buildTransitive/net462/" />
   </ItemGroup>
 
   <!--

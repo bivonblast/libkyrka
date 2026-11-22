@@ -6,10 +6,8 @@ namespace LibKyrka;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The mandatory values are constructor parameters and the optional ones
-/// plain properties, rather than <c>required</c>/<c>init</c> members, so the
-/// type can be used from every C# version, including the C# 7.3 that .NET
-/// Framework projects use by default.
+/// The mandatory values are constructor parameters, so a configuration
+/// without them cannot be created; the optional ones are properties.
 /// </para>
 /// <para>
 /// The keys (cathedral secret, device KEK and optional signing key) are

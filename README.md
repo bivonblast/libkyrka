@@ -17,23 +17,12 @@ dotnet add package LibKyrka.Net
 
 ### Supported frameworks
 
-| Framework | Build used | Notes |
-| --- | --- | --- |
-| .NET 10, .NET 11 and later | `net10.0` | All four platforms. |
-| .NET Framework 4.6.2 – 4.8.1 | `netstandard2.0` | Windows x64; the process must be 64-bit (see below). |
-| Other .NET Standard 2.0 runtimes | `netstandard2.0` | For example .NET 8/9 (out of support), Mono, Unity. Expected to work but not tested. |
+.NET 10 and later (.NET 10 is the oldest version still supported by
+Microsoft). The tests run on .NET 10 and .NET 11.
 
 The Linux binaries need glibc 2.27 or later, the same as .NET 10 itself
 (for example RHEL 8, Debian 12, Ubuntu 22.04). musl-based distributions
 such as Alpine are not supported yet.
-
-The tests run on .NET 10, .NET 11 and .NET Framework 4.7.2+.
-
-On .NET Framework, the package copies `kyrka.dll` into your output folder
-at build time. Only a 64-bit native library is included, so the application
-must run as a 64-bit process. SDK-style projects do that by default. In
-older project types, set the platform target to x64 or turn off
-"Prefer 32-bit".
 
 ## How it works
 
@@ -125,7 +114,7 @@ handlers; queue the work and do it after the call returns.
 
 | Path | Contents |
 | --- | --- |
-| `src/LibKyrka` | The library. `Interop/` mirrors `libkyrka.h` one-to-one; `Polyfills/` fills the gaps in .NET Standard 2.0. |
+| `src/LibKyrka` | The library. `Interop/` mirrors `libkyrka.h` one-to-one. |
 | `tests/LibKyrka.Tests` | Unit and end-to-end tests against the real native library. |
 | `benchmarks/` | Benchmarks and the performance gate that stops regressions from being released ([details](benchmarks/README.md)). |
 | `samples/LibKyrka.Demo` | Console demo for local debugging. |
@@ -135,8 +124,7 @@ handlers; queue the work and do it after the call returns.
 ## Building from source
 
 Prerequisites: the .NET 11 SDK, and Docker for the native build. The tests
-also target .NET 10, which runs on .NET 11 if .NET 10 is not installed, and
-.NET Framework 4.7.2 on Windows.
+also target .NET 10, which runs on .NET 11 if .NET 10 is not installed.
 
 ```sh
 git clone --recurse-submodules <repository-url>

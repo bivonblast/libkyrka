@@ -95,8 +95,7 @@ jobs:
           merge-multiple: true
 
       # The SDK from global.json, plus .NET 10 so the net10.0 tests run on
-      # the real .NET 10 runtime. On Windows the tests also run on .NET
-      # Framework, which is preinstalled on the runner.
+      # the real .NET 10 runtime.
       - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json

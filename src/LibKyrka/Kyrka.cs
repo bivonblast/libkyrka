@@ -9,7 +9,7 @@ namespace LibKyrka;
 /// Library-wide constants and functions that do not belong to a single
 /// <see cref="KyrkaContext"/>.
 /// </summary>
-public static class Kyrka
+public static partial class Kyrka
 {
     /// <summary>
     /// The libkyrka API version these bindings were written against
@@ -70,7 +70,7 @@ public static class Kyrka
     {
         get
         {
-            var match = Regex.Match(NativeVersion, @"\(api:(\d+)\)", RegexOptions.CultureInvariant);
+            var match = ApiVersionPattern().Match(NativeVersion);
             return match.Success ? int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture) : -1;
         }
     }
@@ -89,4 +89,7 @@ public static class Kyrka
             NativeMethods.kyrka_emergency_erase();
         }
     }
+
+    [GeneratedRegex(@"\(api:(\d+)\)")]
+    private static partial Regex ApiVersionPattern();
 }

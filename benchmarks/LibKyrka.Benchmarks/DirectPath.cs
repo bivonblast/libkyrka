@@ -7,10 +7,9 @@ namespace LibKyrka.Benchmarks;
 /// <summary>
 /// The least code that can move a packet through libkyrka: the same native
 /// calls <see cref="KyrkaContext"/> makes, minus everything the wrapper adds
-/// (the lock, disposal checks, wiping the packet buffer, handler exception
-/// handling and delegate-based callbacks). It is a reference point for
-/// measuring the wrapper's overhead, not an example to copy: it skips the
-/// safety the wrapper exists to provide.
+/// (the lock, disposal checks, wiping the packet buffer and handler exception
+/// handling). It is a reference point for measuring the wrapper's overhead,
+/// not an example to copy: it skips the safety the wrapper exists to provide.
 /// </summary>
 /// <remarks>
 /// It takes over the native callbacks of two established contexts, so they
@@ -31,8 +30,8 @@ internal sealed unsafe class DirectPath : IDisposable
         _self = GCHandle.Alloc(this);
 
         var self = GCHandle.ToIntPtr(_self);
-        Check(NativeMethods.kyrka_purgatory_ifc(_alice, (nint)(delegate* unmanaged[Cdecl]<KyrkaPacketNative*, ulong, nint, void>)&OnCiphertext, self));
-        Check(NativeMethods.kyrka_heaven_ifc(_bob, (nint)(delegate* unmanaged[Cdecl]<KyrkaPacketNative*, ulong, nint, void>)&OnPlaintext, self));
+        Check(NativeMethods.kyrka_purgatory_ifc(_alice, &OnCiphertext, self));
+        Check(NativeMethods.kyrka_heaven_ifc(_bob, &OnPlaintext, self));
     }
 
     /// <summary>Encrypts on Alice; the ciphertext lands in the wire buffer.</summary>

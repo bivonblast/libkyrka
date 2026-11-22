@@ -1,4 +1,4 @@
-#if NET
+using System.Security.Cryptography;
 using LibKyrka.Tests.TestSupport;
 
 namespace LibKyrka.Tests;
@@ -11,8 +11,7 @@ namespace LibKyrka.Tests;
 /// Unlike timings, allocations are deterministic, so these checks are exact
 /// and run with the normal test suite on every platform, blocking a release
 /// like any other test. Timings are checked by the performance gate in
-/// benchmarks/. .NET Framework has no per-thread allocation counter, so these
-/// tests only run on .NET.
+/// benchmarks/.
 /// </remarks>
 public sealed class AllocationTests
 {
@@ -24,7 +23,7 @@ public sealed class AllocationTests
     {
         using var tunnel = LoopbackTunnel.WithSharedSecret();
         tunnel.Establish();
-        var plaintext = TestData.RandomBytes(1400);
+        var plaintext = RandomNumberGenerator.GetBytes(1400);
         var wire = new Wire();
         var decrypted = new Wire();
         tunnel.Alice.Context.SetPurgatoryHandler(wire.Write);
@@ -84,4 +83,3 @@ public sealed class AllocationTests
         }
     }
 }
-#endif

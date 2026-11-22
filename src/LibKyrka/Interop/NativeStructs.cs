@@ -36,8 +36,7 @@ internal unsafe struct CathedralConfigNative
     public int Hidden;
     public int Remembrance;
 
-    /// <summary>A <see cref="NativeMethods.PacketCallback"/> function pointer.</summary>
-    public nint Send;
+    public delegate* unmanaged[Cdecl]<KyrkaPacketNative*, ulong, nint, void> Send;
 }
 
 /// <summary>
