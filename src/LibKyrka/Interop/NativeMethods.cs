@@ -4,6 +4,13 @@ using System.Runtime.InteropServices;
 
 [assembly: DisableRuntimeMarshalling]
 
+// Never look for the native library in the current directory or on PATH, where
+// another program could have placed a malicious kyrka.dll (DLL planting). It is
+// loaded from the application's own folders: those listed in its deps.json
+// (runtimes/<rid>/native from the NuGet package), the assembly's folder, and
+// on Windows also the system folders.
+[assembly: DefaultDllImportSearchPaths(DllImportSearchPath.AssemblyDirectory | DllImportSearchPath.SafeDirectories)]
+
 namespace LibKyrka.Interop;
 
 /// <summary>

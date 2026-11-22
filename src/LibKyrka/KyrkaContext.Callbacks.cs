@@ -8,9 +8,14 @@ namespace LibKyrka;
 // The entry points libkyrka calls back into. They run on the thread that is
 // inside a native call (so Kyrka.NativeLock is already held) and must never
 // let an exception escape into native code. A handler exception is stored and
-// rethrown by InvokeNative once the native call has returned.
+// rethrown by InvokeNative once the native call has returned. While a handler
+// runs, _insideHandler is set so calls back into libkyrka are refused.
 public sealed unsafe partial class KyrkaContext
 {
+    // True while this thread runs a user handler (see ThrowIfUnusable).
+    [ThreadStatic]
+    private static bool _insideHandler;
+
     private ExceptionDispatchInfo? _handlerException;
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
@@ -22,14 +27,18 @@ public sealed unsafe partial class KyrkaContext
             return;
         }
 
+        _insideHandler = true;
         try
         {
-            var data = NativeMethods.kyrka_packet_data(packet);
-            handler(new ReadOnlySpan<byte>(data, checked((int)packet->Length)), sequence);
+            handler(PacketSpan(NativeMethods.kyrka_packet_data(packet), packet->Length), sequence);
         }
         catch (Exception exception)
         {
             context.CaptureHandlerException(exception);
+        }
+        finally
+        {
+            _insideHandler = false;
         }
     }
 
@@ -42,6 +51,7 @@ public sealed unsafe partial class KyrkaContext
             return;
         }
 
+        _insideHandler = true;
         try
         {
             handler(context.GetSendBuffer(packet), sequence);
@@ -49,6 +59,10 @@ public sealed unsafe partial class KyrkaContext
         catch (Exception exception)
         {
             context.CaptureHandlerException(exception);
+        }
+        finally
+        {
+            _insideHandler = false;
         }
     }
 
@@ -61,6 +75,7 @@ public sealed unsafe partial class KyrkaContext
             return;
         }
 
+        _insideHandler = true;
         try
         {
             handler(context.GetSendBuffer(packet), (CathedralMessageKind)magic);
@@ -68,6 +83,10 @@ public sealed unsafe partial class KyrkaContext
         catch (Exception exception)
         {
             context.CaptureHandlerException(exception);
+        }
+        finally
+        {
+            _insideHandler = false;
         }
     }
 
@@ -80,6 +99,7 @@ public sealed unsafe partial class KyrkaContext
             return;
         }
 
+        _insideHandler = true;
         try
         {
             listeners(KyrkaEventFactory.Create(nativeEvent));
@@ -88,6 +108,25 @@ public sealed unsafe partial class KyrkaContext
         {
             context.CaptureHandlerException(exception);
         }
+        finally
+        {
+            _insideHandler = false;
+        }
+    }
+
+    /// <summary>
+    /// A span over packet bytes in native memory. The length comes from
+    /// libkyrka; it is checked against the packet buffer size anyway, so a
+    /// wrong value can never expose memory outside the packet.
+    /// </summary>
+    private static ReadOnlySpan<byte> PacketSpan(byte* data, nuint length)
+    {
+        if (data == null || length > Kyrka.PacketBufferLength)
+        {
+            throw new InvalidOperationException($"libkyrka returned an invalid packet ({length} bytes).");
+        }
+
+        return new ReadOnlySpan<byte>(data, (int)length);
     }
 
     /// <summary>The bytes of an outgoing packet as they must go on the wire.</summary>
@@ -100,7 +139,7 @@ public sealed unsafe partial class KyrkaContext
             throw LastError("kyrka_packet_sendbuf");
         }
 
-        return new ReadOnlySpan<byte>(buffer, checked((int)length));
+        return PacketSpan(buffer, length);
     }
 
     private void CaptureHandlerException(Exception exception) =>

@@ -152,6 +152,36 @@ public sealed class TunnelTests
         Assert.Contains(tunnel.Alice.Events, e => e is KeysErasedEvent);
     }
 
+    [Fact]
+    public void Handler_CallingBackIntoTheContext_IsRefused_AndTheContextStaysUsable()
+    {
+        using var tunnel = LoopbackTunnel.WithSharedSecret();
+        tunnel.Establish();
+        var alice = tunnel.Alice.Context;
+        alice.SetPurgatoryHandler((_, _) => alice.HeavenInput("nested"u8));
+
+        var exception = Assert.Throws<InvalidOperationException>(() => alice.HeavenInput("hello"u8));
+        Assert.Contains("handler", exception.Message);
+
+        alice.SetPurgatoryHandler((packet, _) => tunnel.Alice.Outbox.Enqueue(packet.ToArray()));
+        alice.HeavenInput("still works"u8);
+        tunnel.Deliver();
+        Assert.Equal("still works", ReceivedText(tunnel.Bob));
+    }
+
+    [Fact]
+    public void Handler_UsingAnotherContext_IsRefused()
+    {
+        using var tunnel = LoopbackTunnel.WithSharedSecret();
+        tunnel.Establish();
+        tunnel.Bob.Context.SetHeavenHandler((_, _) => new KyrkaContext().Dispose());
+
+        tunnel.Alice.Context.HeavenInput("hello"u8);
+        var packet = tunnel.Alice.Outbox.Dequeue();
+
+        Assert.Throws<InvalidOperationException>(() => tunnel.Bob.Context.PurgatoryInput(packet));
+    }
+
     private static string ReceivedText(LoopbackTunnel.Peer peer) =>
         Encoding.UTF8.GetString(Assert.Single(peer.Received).Data);
 }

@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using Microsoft.Win32.SafeHandles;
 using LibKyrka.Interop;
 
 namespace LibKyrka;
@@ -21,8 +22,9 @@ namespace LibKyrka;
 /// </list>
 /// <para>
 /// All handlers and <see cref="EventReceived"/> are invoked synchronously, on
-/// the calling thread, from within the method that triggered them. Do not call
-/// back into a context from its own handlers; queue the work instead.
+/// the calling thread, from within the method that triggered them. They must
+/// not call into libkyrka (any context): that throws an
+/// <see cref="InvalidOperationException"/>. Queue the work instead.
 /// </para>
 /// <para>
 /// Calls into libkyrka are serialized on a process-wide lock because the
@@ -42,6 +44,7 @@ public sealed unsafe partial class KyrkaContext : IDisposable
     /// <exception cref="KyrkaException">The native context could not be created.</exception>
     public KyrkaContext()
     {
+        ThrowIfInsideHandler();
         _handle = new KyrkaSafeHandle();
         _handle.SetOwner(this);
 
@@ -78,7 +81,7 @@ public sealed unsafe partial class KyrkaContext : IDisposable
 
         lock (Kyrka.NativeLock)
         {
-            ThrowIfDisposed();
+            ThrowIfUnusable();
             _heavenHandler = handler;
             Check(NativeMethods.kyrka_heaven_ifc(_handle, &OnNativeHeavenPacket, _handle.UserData), "kyrka_heaven_ifc");
         }
@@ -94,7 +97,7 @@ public sealed unsafe partial class KyrkaContext : IDisposable
 
         lock (Kyrka.NativeLock)
         {
-            ThrowIfDisposed();
+            ThrowIfUnusable();
             _purgatoryHandler = handler;
             Check(NativeMethods.kyrka_purgatory_ifc(_handle, &OnNativePurgatoryPacket, _handle.UserData), "kyrka_purgatory_ifc");
         }
@@ -143,7 +146,7 @@ public sealed unsafe partial class KyrkaContext : IDisposable
 
         lock (Kyrka.NativeLock)
         {
-            ThrowIfDisposed();
+            ThrowIfUnusable();
             Check(NativeMethods.kyrka_mtu_size(_handle, (ushort)mtu), "kyrka_mtu_size");
         }
     }
@@ -156,7 +159,7 @@ public sealed unsafe partial class KyrkaContext : IDisposable
     {
         lock (Kyrka.NativeLock)
         {
-            ThrowIfDisposed();
+            ThrowIfUnusable();
             Check(NativeMethods.kyrka_shroud_enable(_handle), "kyrka_shroud_enable");
         }
     }
@@ -170,7 +173,7 @@ public sealed unsafe partial class KyrkaContext : IDisposable
     {
         lock (Kyrka.NativeLock)
         {
-            ThrowIfDisposed();
+            ThrowIfUnusable();
             Check(NativeMethods.kyrka_p2p_active(_handle, active ? 1 : 0), "kyrka_p2p_active");
         }
     }
@@ -187,7 +190,7 @@ public sealed unsafe partial class KyrkaContext : IDisposable
     {
         lock (Kyrka.NativeLock)
         {
-            ThrowIfDisposed();
+            ThrowIfUnusable();
             InvokeNative(NativeMethods.kyrka_key_manage(_handle), "kyrka_key_manage");
         }
     }
@@ -200,7 +203,7 @@ public sealed unsafe partial class KyrkaContext : IDisposable
     {
         lock (Kyrka.NativeLock)
         {
-            ThrowIfDisposed();
+            ThrowIfUnusable();
             InvokeNative(NativeMethods.kyrka_peer_timeout(_handle), "kyrka_peer_timeout");
         }
     }
@@ -220,7 +223,7 @@ public sealed unsafe partial class KyrkaContext : IDisposable
 
         lock (Kyrka.NativeLock)
         {
-            ThrowIfDisposed();
+            ThrowIfUnusable();
             SubmitPacket(plaintext, shroud, &NativeMethods.kyrka_packet_databuf,
                 &NativeMethods.kyrka_heaven_input, "kyrka_heaven_input");
         }
@@ -243,7 +246,7 @@ public sealed unsafe partial class KyrkaContext : IDisposable
 
         lock (Kyrka.NativeLock)
         {
-            ThrowIfDisposed();
+            ThrowIfUnusable();
             SubmitPacket(ciphertext, shroud, &NativeMethods.kyrka_packet_recvbuf,
                 &NativeMethods.kyrka_purgatory_input, "kyrka_purgatory_input");
         }
@@ -277,7 +280,7 @@ public sealed unsafe partial class KyrkaContext : IDisposable
 
         lock (Kyrka.NativeLock)
         {
-            ThrowIfDisposed();
+            ThrowIfUnusable();
             _cathedralHandler = handler;
             Check(NativeMethods.kyrka_cathedral_config(_handle, &native), "kyrka_cathedral_config");
         }
@@ -291,7 +294,7 @@ public sealed unsafe partial class KyrkaContext : IDisposable
     {
         lock (Kyrka.NativeLock)
         {
-            ThrowIfDisposed();
+            ThrowIfUnusable();
             InvokeNative(NativeMethods.kyrka_cathedral_notify(_handle), "kyrka_cathedral_notify");
         }
     }
@@ -304,7 +307,7 @@ public sealed unsafe partial class KyrkaContext : IDisposable
     {
         lock (Kyrka.NativeLock)
         {
-            ThrowIfDisposed();
+            ThrowIfUnusable();
             InvokeNative(NativeMethods.kyrka_cathedral_nat_detection(_handle), "kyrka_cathedral_nat_detection");
         }
     }
@@ -326,7 +329,7 @@ public sealed unsafe partial class KyrkaContext : IDisposable
 
         lock (Kyrka.NativeLock)
         {
-            ThrowIfDisposed();
+            ThrowIfUnusable();
             fixed (byte* pointer = peers)
             {
                 InvokeNative(
@@ -352,22 +355,43 @@ public sealed unsafe partial class KyrkaContext : IDisposable
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
 
-        // Read in managed code so Unicode paths and error messages behave the
-        // same on every platform; the bytes are wiped once they are loaded.
-        // The size is checked first so a wrong path to a large file fails
-        // without reading it, and again after reading in case it changed.
-        ThrowIfWrongKeyFileLength(path, new FileInfo(path).Length, expectedLength);
+        // The key is read in managed code so Unicode paths and error messages
+        // behave the same on every platform. It goes into stack memory, which
+        // the GC never moves or copies, and is wiped afterwards. The size
+        // check and the read use one handle, so the file cannot be swapped in
+        // between, and one byte more than expected is read to notice a file
+        // that grew after the check.
+        using var file = File.OpenHandle(path);
+        ThrowIfWrongKeyFileLength(path, RandomAccess.GetLength(file), expectedLength);
 
-        var key = File.ReadAllBytes(path);
+        Span<byte> key = stackalloc byte[expectedLength + 1];
         try
         {
-            ThrowIfWrongKeyFileLength(path, key.Length, expectedLength);
-            load(key);
+            ThrowIfWrongKeyFileLength(path, ReadAll(file, key), expectedLength);
+            load(key[..expectedLength]);
         }
         finally
         {
             CryptographicOperations.ZeroMemory(key);
         }
+    }
+
+    /// <summary>Reads from the start of the file until the buffer is full or the file ends.</summary>
+    private static int ReadAll(SafeFileHandle file, Span<byte> buffer)
+    {
+        var total = 0;
+        while (total < buffer.Length)
+        {
+            var read = RandomAccess.Read(file, buffer[total..], total);
+            if (read == 0)
+            {
+                break;
+            }
+
+            total += read;
+        }
+
+        return total;
     }
 
     private static void ThrowIfWrongKeyFileLength(string path, long length, int expectedLength)
@@ -392,7 +416,7 @@ public sealed unsafe partial class KyrkaContext : IDisposable
 
         lock (Kyrka.NativeLock)
         {
-            ThrowIfDisposed();
+            ThrowIfUnusable();
             fixed (byte* pointer = key)
             {
                 Check(nativeLoad(_handle, pointer, (nuint)key.Length), operation);
@@ -459,7 +483,27 @@ public sealed unsafe partial class KyrkaContext : IDisposable
     private KyrkaException LastError(string operation) =>
         new((KyrkaError)NativeMethods.kyrka_last_error(_handle), operation);
 
-    private void ThrowIfDisposed() => ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
+    /// <summary>
+    /// Every operation calls this while holding <see cref="Kyrka.NativeLock"/>.
+    /// The lock is re-entrant, so without the handler check a handler calling
+    /// back into libkyrka would run native code in the middle of another
+    /// native call, which libkyrka does not support and which could corrupt
+    /// its memory.
+    /// </summary>
+    private void ThrowIfUnusable()
+    {
+        ObjectDisposedException.ThrowIf(_handle.IsClosed, this);
+        ThrowIfInsideHandler();
+    }
+
+    private static void ThrowIfInsideHandler()
+    {
+        if (_insideHandler)
+        {
+            throw new InvalidOperationException(
+                "libkyrka cannot be called from a packet handler or event handler. Queue the work and do it after the call that raised the handler has returned.");
+        }
+    }
 
     private delegate void LoadKeyAction(ReadOnlySpan<byte> key);
 }
